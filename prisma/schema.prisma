@@ -1,0 +1,529 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Extensions are not directly supported by Prisma schema.
+// Enable these extensions directly through your PostgreSQL database.
+
+model ActionMailboxInboundEmail {
+  id                Int       @id @default(autoincrement())
+  status            Int       @default(0)
+  messageId         String
+  messageChecksum   String
+  createdAt         DateTime
+  updatedAt         DateTime
+
+  @@unique([messageId, messageChecksum], name: "index_action_mailbox_inbound_emails_uniqueness")
+}
+
+model ActiveStorageAttachment {
+  id          Int      @id @default(autoincrement())
+  name        String
+  recordType  String
+  recordId    BigInt
+  blobId      BigInt
+  createdAt   DateTime
+  blob        ActiveStorageBlob @relation(fields: [blobId], references: [id])
+
+  @@unique([recordType, recordId, name, blobId], name: "index_active_storage_attachments_uniqueness")
+}
+
+model ActiveStorageBlob {
+  id           Int                          @id @default(autoincrement())
+  key          String
+  filename     String
+  contentType  String?
+  metadata     String?
+  serviceName  String
+  byteSize     BigInt
+  checksum     String?
+  createdAt    DateTime
+  attachments  ActiveStorageAttachment[]
+
+  @@unique([key], name: "index_active_storage_blobs_on_key")
+}
+
+model ActiveStorageVariantRecord {
+  id              Int               @id @default(autoincrement())
+  blobId          BigInt
+  variationDigest String
+  blob            ActiveStorageBlob @relation(fields: [blobId], references: [id])
+
+  @@unique([blobId, variationDigest], name: "index_active_storage_variant_records_uniqueness")
+}
+
+model AnalyticsEvent {
+  id         Int      @id @default(autoincrement())
+  url        String
+  goal       String
+  value      Int      @default(0)
+  trackedAt  DateTime?
+  createdAt  DateTime
+  updatedAt  DateTime
+}
+
+model AnalyticsSearchQuery {
+  id                   Int      @id @default(autoincrement())
+  searchQuery          String?
+  specialtyIds         Int[]
+  badges               String[]
+  roleLevels           String[]
+  roleTypes            String[]
+  includeNotInterested Boolean?
+  countries            String[]
+  utcOffsets           Int?
+  sort                 String?
+  page                 Int?
+  createdAt            DateTime
+  updatedAt            DateTime
+}
+
+model Business {
+  id                           Int                               @id @default(autoincrement())
+  userId                       Int?
+  contactName                  String
+  company                      String
+  createdAt                    DateTime
+  updatedAt                    DateTime
+  bio                          String
+  developerNotifications       Int                               @default(0)
+  website                      String?
+  contactRole                  String?
+  invisible                    Boolean                           @default(false)
+  surveyRequestNotifications   Boolean                           @default(true)
+  user                         User?                             @relation(fields: [userId], references: [id])
+  businessesHiringInvoiceRequests BusinessesHiringInvoiceRequest[]
+  conversations                Conversation[]
+}
+
+model BusinessesHiringInvoiceRequest {
+  id                Int       @id @default(autoincrement())
+  businessId        Int
+  billingAddress    String
+  developerName     String
+  startDate         DateTime
+  annualSalary      Int
+  employmentType    Int
+  position          String?
+  feedback          String?
+  createdAt         DateTime
+  updatedAt         DateTime
+  business          Business  @relation(fields: [businessId], references: [id])
+
+  @@index([businessId], name: "index_businesses_hiring_invoice_requests_on_business_id")
+}
+
+model Conversation {
+  id                          Int      @id @default(autoincrement())
+  developerId                 Int?
+  businessId                  Int?
+  createdAt                   DateTime
+  updatedAt                   DateTime
+  developerBlockedAt          DateTime?
+  businessBlockedAt           DateTime?
+  inboundEmailToken           String?  @unique
+  userWithUnreadMessagesId    Int?
+  developer                   Developer? @relation(fields: [developerId], references: [id])
+  business                    Business?  @relation(fields: [businessId], references: [id])
+  messages                    Message[]
+
+  @@unique([developerId, businessId], name: "index_conversations_on_developer_id_and_business_id")
+}
+
+model Developer {
+  id                              Int                                    @id @default(autoincrement())
+  name                            String
+  hero                            String
+  bio                             String
+  website                         String?
+  github                          String?
+  twitter                         String?
+  createdAt                       DateTime
+  updatedAt                       DateTime
+  userId                          Int?
+  linkedin                        String?
+  searchStatus                    Int?
+  preferredMinHourlyRate          Int?
+  preferredMaxHourlyRate          Int?
+  preferredMinSalary              Int?
+  preferredMaxSalary              Int?
+  featuredAt                      DateTime?
+  profileReminderNotifications    Boolean                               @default(true)
+  stackOverflow                   String?
+  publicProfileKey                String?                                @unique
+  sourceContributor               Boolean                                @default(false)
+  mastodon                        String?
+  responseRate                    Int                                    @default(0)
+  productAnnouncementNotifications Boolean                               @default(true)
+  schedulingLink                  String?
+  profileUpdatedAt                DateTime                               @default(now())
+  searchScore                     Int                                    @default(0)
+  conversationsCount              Int                                    @default(0)
+  gitlab                          String?
+  user                            User?                                  @relation(fields: [userId], references: [id])
+  celebrationPackageRequests      DevelopersCelebrationPackageRequest[]
+  // Note: the virtual field for textsearchable_index_col is omitted because Prisma does not support tsvector directly.
+  location                        Location[]
+  roleLevels                      RoleLevels?                            @relation(fields: [id], references: [developerId])
+  roleTypes                       RoleTypes?                             @relation(fields: [id], references: [developerId])
+  specialtyTags                   SpecialtyTag[]
+}
+
+model DevelopersCelebrationPackageRequest {
+  id                 Int      @id @default(autoincrement())
+  developerId        Int
+  address            String
+  company            String
+  position           String
+  startDate          DateTime
+  employmentType     Int
+  feedback           String?
+  createdAt          DateTime
+  updatedAt          DateTime
+  developer          Developer @relation(fields: [developerId], references: [id])
+
+  @@index([developerId], name: "index_developers_celebration_package_requests_on_developer_id")
+}
+
+// Continue defining other models in a similar fashion.
+
+model Location {
+  id           Int       @id @default(autoincrement())
+  developerId  Int
+  city         String?
+  state        String?
+  country      String?
+  countryCode  String?
+  latitude     Float?
+  longitude    Float?
+  timeZone     String
+  utcOffset    Int
+  data         Json?
+  createdAt    DateTime
+  updatedAt    DateTime
+  developer    Developer @relation(fields: [developerId], references: [id])
+
+  @@index([developerId], name: "index_locations_on_developer_id")
+}
+
+model Message {
+  id               Int       @id @default(autoincrement())
+  conversationId   Int
+  senderType       String
+  senderId         BigInt
+  body             String
+  createdAt        DateTime
+  updatedAt        DateTime
+  bodyHtml         String
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId], name: "index_messages_on_conversation_id")
+  @@index([senderType, senderId], name: "index_messages_on_sender")
+}
+
+model NotificationToken {
+  id        Int      @id @default(autoincrement())
+  platform  String
+  token     String
+  userId    Int
+  createdAt DateTime
+  updatedAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], name: "index_notification_tokens_on_user_id")
+}
+
+model Notification {
+  id             Int      @id @default(autoincrement())
+  recipientType  String
+  recipientId    Int
+  type           String
+  params         Json?
+  readAt         DateTime?
+  createdAt      DateTime
+  updatedAt      DateTime
+
+  @@index([readAt], name: "index_notifications_on_read_at")
+  @@index([recipientType, recipientId], name: "index_notifications_on_recipient")
+}
+
+model OpenStartupContribution {
+  id          Int      @id @default(autoincrement())
+  occurredOn  DateTime
+  description String
+  url         String?
+  amount      Decimal
+  createdAt   DateTime
+  updatedAt   DateTime
+}
+
+model OpenStartupExpense {
+  id          Int      @id @default(autoincrement())
+  occurredOn  DateTime
+  description String
+  url         String?
+  amount      Decimal
+  createdAt   DateTime
+  updatedAt   DateTime
+}
+
+model OpenStartupMetric {
+  id          Int      @id @default(autoincrement())
+  occurredOn  DateTime
+  legacyData  Json     @default("{}")
+  data        Json
+  createdAt   DateTime
+  updatedAt   DateTime
+}
+
+model OpenStartupMonthlyBalance {
+  id          Int      @id @default(autoincrement())
+  occurredOn  DateTime
+  revenue     Decimal
+  expenses    Decimal
+  contributions Decimal
+  createdAt   DateTime
+  updatedAt   DateTime
+}
+
+model OpenStartupRevenue {
+  id          Int      @id @default(autoincrement())
+  occurredOn  DateTime
+  description String
+  amount      Decimal
+  createdAt   DateTime
+  updatedAt   DateTime
+}
+
+model OpenStartupStripeTransaction {
+  id              Int      @id @default(autoincrement())
+  stripeId        String   @unique
+  amount          Decimal
+  created         DateTime
+  description     String
+  fee             Decimal
+  transactionType String
+  createdAt       DateTime
+  updatedAt       DateTime
+
+  @@index([transactionType], name: "index_open_startup_stripe_transactions_on_transaction_type")
+}
+
+model OpenStartupTransaction {
+  id              Int      @id @default(autoincrement())
+  occurredOn      DateTime
+  description     String
+  url             String?
+  amount          Decimal
+  transactionType Int      @default(1)
+  createdAt       DateTime
+  updatedAt       DateTime
+}
+
+model PayCharge {
+  id                    Int      @id @default(autoincrement())
+  customerId            Int
+  subscriptionId        Int?
+  processorId           String
+  amount                Int
+  currency              String?
+  applicationFeeAmount  Int?
+  amountRefunded        Int?
+  metadata              Json?
+  data                  Json?
+  createdAt             DateTime
+  updatedAt             DateTime
+  customer              PayCustomer @relation(fields: [customerId], references: [id])
+  subscription          PaySubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([customerId, processorId], name: "index_pay_charges_on_customer_id_and_processor_id")
+  @@index([subscriptionId], name: "index_pay_charges_on_subscription_id")
+}
+
+model PayCustomer {
+  id           Int                @id @default(autoincrement())
+  ownerType    String
+  ownerId      BigInt
+  processor    String
+  processorId  String?            @unique
+  default      Boolean?
+  data         Json?
+  deletedAt    DateTime?
+  createdAt    DateTime
+  updatedAt    DateTime
+  charges      PayCharge[]
+  paymentMethods PayPaymentMethod[]
+  subscriptions PaySubscription[]
+
+  @@index([ownerType, ownerId, deletedAt, default], name: "pay_customer_owner_index")
+  @@unique([processor, processorId], name: "index_pay_customers_on_processor_and_processor_id")
+}
+
+model PayMerchant {
+  id          Int      @id @default(autoincrement())
+  ownerType   String
+  ownerId     BigInt
+  processor   String
+  processorId String?  @unique
+  default     Boolean?
+  data        Json?
+  createdAt   DateTime
+  updatedAt   DateTime
+
+  @@index([ownerType, ownerId, processor], name: "index_pay_merchants_on_owner_type_and_owner_id_and_processor")
+}
+
+model PayPaymentMethod {
+  id           Int         @id @default(autoincrement())
+  customerId   Int
+  processorId  String
+  default      Boolean?
+  type         String?
+  data         Json?
+  createdAt    DateTime
+  updatedAt    DateTime
+  customer     PayCustomer @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, processorId], name: "index_pay_payment_methods_on_customer_id_and_processor_id")
+}
+
+model PaySubscription {
+  id                    Int               @id @default(autoincrement())
+  customerId            Int
+  name                  String
+  processorId           String
+  processorPlan         String
+  quantity              Int               @default(1)
+  status                String
+  trialEndsAt           DateTime?
+  endsAt                DateTime?
+  applicationFeePercent Decimal?          @default(0)
+  metadata              Json?
+  data                  Json?
+  createdAt             DateTime
+  updatedAt             DateTime
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  metered               Boolean?
+  pauseBehavior         String?
+  pauseStartsAt         DateTime?
+  pauseResumesAt        DateTime?
+  charges               PayCharge[]
+  customer              PayCustomer       @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, processorId], name: "index_pay_subscriptions_on_customer_id_and_processor_id")
+  @@index([metered], name: "index_pay_subscriptions_on_metered")
+  @@index([pauseStartsAt], name: "index_pay_subscriptions_on_pause_starts_at")
+}
+
+model PayWebhook {
+  id          Int      @id @default(autoincrement())
+  processor   String
+  eventType   String
+  event       Json
+  createdAt   DateTime
+  updatedAt   DateTime
+}
+
+model Referral {
+  id               Int      @id @default(autoincrement())
+  referredUserId   Int
+  code             String
+  createdAt        DateTime
+  updatedAt        DateTime
+  referringUserId  Int?
+  referredUser     User     @relation(fields: [referredUserId], references: [id], name: "referred")
+  referringUser    User?    @relation(fields: [referringUserId], references: [id], name: "referring")
+
+  @@index([referredUserId], name: "index_referrals_on_referred_user_id")
+  @@index([referringUserId], name: "index_referrals_on_referring_user_id")
+}
+
+model RoleLevel {
+  id         Int       @id @default(autoincrement())
+  developerId Int
+  junior     Boolean?
+  mid        Boolean?
+  senior     Boolean?
+  principal  Boolean?
+  cLevel     Boolean?
+  createdAt  DateTime
+  updatedAt  DateTime
+  developer  Developer @relation(fields: [developerId], references: [id])
+
+  @@unique([developerId], name: "index_role_levels_on_developer_id")
+}
+
+model RoleType {
+  id              Int      @id @default(autoincrement())
+  developerId     Int
+  partTimeContract Boolean?
+  fullTimeContract Boolean?
+  fullTimeEmployment Boolean?
+  createdAt       DateTime
+  updatedAt       DateTime
+  developer       Developer @relation(fields: [developerId], references: [id])
+
+  @@unique([developerId], name: "index_role_types_on_developer_id")
+}
+
+model Specialty {
+  id              Int              @id @default(autoincrement())
+  name            String
+  developersCount Int              @default(0)
+  createdAt       DateTime
+  updatedAt       DateTime
+  specialtyTags   SpecialtyTag[]
+
+  @@unique([name], name: "index_specialties_on_name")
+}
+
+model SpecialtyTag {
+  id            Int        @id @default(autoincrement())
+  specialtyId   Int
+  developerId   Int
+  createdAt     DateTime
+  updatedAt     DateTime
+  specialty     Specialty  @relation(fields: [specialtyId], references: [id])
+  developer     Developer  @relation(fields: [developerId], references: [id])
+
+  @@index([developerId], name: "index_specialty_tags_on_developer_id")
+  @@index([specialtyId], name: "index_specialty_tags_on_specialty_id")
+}
+
+// The `User` model is typically central to most applications and would need to be adjusted based on specific application requirements.
+model User {
+  id                       Int                         @id @default(autoincrement())
+  email                    String                      @unique
+  encryptedPassword        String
+  resetPasswordToken       String?                     @unique
+  resetPasswordSentAt      DateTime?
+  rememberCreatedAt        DateTime?
+  confirmationToken        String?                     @unique
+  confirmedAt              DateTime?
+  confirmationSentAt       DateTime?
+  unconfirmedEmail         String?
+  createdAt                DateTime
+  updatedAt                DateTime
+  admin                    Boolean                     @default(false)
+  suspended                Boolean                     @default(false)
+  referralCode             String?
+  referralsCount           Int                         @default(0)
+  authenticationToken      String?                     @unique
+  notificationTokens       NotificationToken[]
+  notifications            Notification[]
+  referredByReferrals      Referral[]                  @relation("referred")
+  referringReferrals       Referral[]                  @relation("referring")
+  payCharges               PayCharge[]
+  payCustomers             PayCustomer[]
+  payPaymentMethods        PayPaymentMethod[]
+  paySubscriptions         PaySubscription[]
+  developers               Developer[]
+  hiringAgreementsSignatures HiringAgreementsSignature[]
+}
