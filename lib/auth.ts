@@ -1,21 +1,21 @@
-import { PrismaAdapter } from "@next-auth/prisma-adapter"
-import { NextAuthOptions } from "next-auth"
-import EmailProvider from "next-auth/providers/email"
-import GitHubProvider from "next-auth/providers/github"
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { NextAuthOptions } from "next-auth";
+import EmailProvider from "next-auth/providers/email";
+import GitHubProvider from "next-auth/providers/github";
 //import { Client } from "postmark"
 
-import { env } from "@/env.mjs"
-import { siteConfig } from "@/config/site"
-import { db } from "@/lib/db"
+import { env } from "@/env.mjs";
+import { siteConfig } from "@/config/site";
+import { db } from "@/lib/db";
 
 const postmarkClient = {
-    sendEmailWithTemplate: async (options: any) => {
-        return {
-            ErrorCode: 0,
-            Message: "OK",
-        }
-    }
-} //new Client(env.POSTMARK_API_TOKEN)
+  sendEmailWithTemplate: async (options: any) => {
+    return {
+      ErrorCode: 0,
+      Message: "OK",
+    };
+  },
+}; //new Client(env.POSTMARK_API_TOKEN)
 
 export const authOptions: NextAuthOptions = {
   // huh any! I know.
@@ -43,13 +43,13 @@ export const authOptions: NextAuthOptions = {
           select: {
             emailVerified: true,
           },
-        })
+        });
 
         const templateId = user?.emailVerified
           ? env.POSTMARK_SIGN_IN_TEMPLATE
-          : env.POSTMARK_ACTIVATION_TEMPLATE
+          : env.POSTMARK_ACTIVATION_TEMPLATE;
         if (!templateId) {
-          throw new Error("Missing template id")
+          throw new Error("Missing template id");
         }
 
         const result = await postmarkClient.sendEmailWithTemplate({
@@ -68,10 +68,10 @@ export const authOptions: NextAuthOptions = {
               Value: new Date().getTime() + "",
             },
           ],
-        })
+        });
 
         if (result.ErrorCode) {
-          throw new Error(result.Message)
+          throw new Error(result.Message);
         }
       },
     }),
@@ -80,29 +80,29 @@ export const authOptions: NextAuthOptions = {
     async session({ token, session }) {
       if (token) {
         // @ts-ignore
-        session.user.id = token.id
+        session.user.id = token.id;
         // @ts-ignore
-        session.user.name = token.name
+        session.user.name = token.name;
         // @ts-ignore
-        session.user.email = token.email
+        session.user.email = token.email;
         // @ts-ignore
-        session.user.image = token.picture
+        session.user.image = token.picture;
       }
 
-      return session
+      return session;
     },
     async jwt({ token, user }) {
       const dbUser = await db.user.findFirst({
         where: {
           email: token.email,
         },
-      })
+      });
 
       if (!dbUser) {
         if (user) {
-          token.id = user?.id
+          token.id = user?.id;
         }
-        return token
+        return token;
       }
 
       return {
@@ -110,7 +110,7 @@ export const authOptions: NextAuthOptions = {
         name: dbUser.name,
         email: dbUser.email,
         picture: dbUser.image,
-      }
+      };
     },
   },
-}
+};
